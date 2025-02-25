@@ -478,7 +478,7 @@ typedef struct sgp_irect {
 } sgp_irect;
 
 typedef struct sgp_rect {
-    float x, y, w, h;
+    float x0, y0, x1, y1;
 } sgp_rect;
 
 typedef struct sgp_textured_rect {
@@ -641,7 +641,7 @@ SOKOL_GP_API_DECL void sgp_draw_filled_triangles(const sgp_triangle* triangles, 
 SOKOL_GP_API_DECL void sgp_draw_filled_triangle(float ax, float ay, float bx, float by, float cx, float cy);    /* Draws a single triangle. */
 SOKOL_GP_API_DECL void sgp_draw_filled_triangles_strip(const sgp_point* points, uint32_t count);                /* Draws strip of triangles. */
 SOKOL_GP_API_DECL void sgp_draw_filled_rects(const sgp_rect* rects, uint32_t count);                            /* Draws a batch of rectangles. */
-SOKOL_GP_API_DECL void sgp_draw_filled_rect(float x, float y, float w, float h);                                /* Draws a single rectangle. */
+SOKOL_GP_API_DECL void sgp_draw_filled_rect(float x0, float y0, float x1, float y1);                            /* Draws a single rectangle. */
 SOKOL_GP_API_DECL void sgp_draw_textured_rects(int channel, const sgp_textured_rect* rects, uint32_t count);    /* Draws a batch textured rectangle, each from a source region. */
 SOKOL_GP_API_DECL void sgp_draw_textured_rect(int channel, sgp_rect dest_rect, sgp_rect src_rect);              /* Draws a single textured rectangle from a source region. */
 
@@ -2873,10 +2873,10 @@ void sgp_draw_filled_rects(const sgp_rect* rects, uint32_t count) {
     _sgp_region region = {FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX};
     for (uint32_t i=0;i<count;v+=6, rect++, i++) {
         sgp_vec2 quad[4] = {
-            {rect->x,           rect->y + rect->h}, // bottom left
-            {rect->x + rect->w, rect->y + rect->h}, // bottom right
-            {rect->x + rect->w, rect->y}, // top right
-            {rect->x,  rect->y}, // top left
+            {rect->x0, rect->y1}, // bottom left
+            {rect->x1, rect->y1}, // bottom right
+            {rect->x1, rect->y0}, // top right
+            {rect->x0, rect->y0}, // top left
         };
         _sgp_transform_vec2(&mvp, quad, quad, 4);
 
@@ -2908,10 +2908,10 @@ void sgp_draw_filled_rects(const sgp_rect* rects, uint32_t count) {
     _sgp_queue_draw(pip, region, vertex_index, num_vertices, SG_PRIMITIVETYPE_TRIANGLES);
 }
 
-void sgp_draw_filled_rect(float x, float y, float w, float h) {
+void sgp_draw_filled_rect(float x0, float y0, float x1, float y1) {
     SOKOL_ASSERT(_sgp.init_cookie == _SGP_INIT_COOKIE);
     SOKOL_ASSERT(_sgp.cur_state > 0);
-    sgp_rect rect = {x,y,w,h};
+    sgp_rect rect = {x0,y0,x1,y1};
     sgp_draw_filled_rects(&rect, 1);
 }
 
@@ -2951,10 +2951,10 @@ void sgp_draw_textured_rects(int channel, const sgp_textured_rect* rects, uint32
     _sgp_region region = {FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX};
     for (uint32_t i=0;i<count;i++) {
         sgp_vec2 quad[4] = {
-            {rects[i].dst.x,                  rects[i].dst.y + rects[i].dst.h}, // bottom left
-            {rects[i].dst.x + rects[i].dst.w, rects[i].dst.y + rects[i].dst.h}, // bottom right
-            {rects[i].dst.x + rects[i].dst.w, rects[i].dst.y}, // top right
-            {rects[i].dst.x,  rects[i].dst.y}, // top left
+            {rects[i].dst.x0, rects[i].dst.y1}, // bottom left
+            {rects[i].dst.x1, rects[i].dst.y1}, // bottom right
+            {rects[i].dst.x1, rects[i].dst.y0}, // top right
+            {rects[i].dst.x0, rects[i].dst.y0}, // top left
         };
         _sgp_transform_vec2(&mvp, quad, quad, 4);
 
@@ -2978,10 +2978,10 @@ void sgp_draw_textured_rects(int channel, const sgp_textured_rect* rects, uint32
     sgp_color_ub4 color = _sgp.state.color;
     for (uint32_t i=0;i<count;i++) {
         // compute source rect
-        float tl = rects[i].src.x*iw;
-        float tt = rects[i].src.y*ih;
-        float tr = (rects[i].src.x + rects[i].src.w)*iw;
-        float tb = (rects[i].src.y + rects[i].src.h)*ih;
+        float tl = rects[i].src.x0*iw;
+        float tt = rects[i].src.y0*ih;
+        float tr = rects[i].src.x1*iw;
+        float tb = rects[i].src.y1*ih;
         sgp_vec2 vtexquad[4] = {
             {tl, tb}, // bottom left
             {tr, tb}, // bottom right
